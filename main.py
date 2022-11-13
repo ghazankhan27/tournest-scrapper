@@ -17,6 +17,14 @@ cred = credentials.Certificate(
 app = firebase_admin.initialize_app(cred, {"databaseURL": "/"})
 
 
+def add_hotel_to_db(hotel):
+    db = firestore.client(app)
+
+    print("Adding {title} to db".format(title=hotel["title"]))
+
+    db.collection("Hotels").add(hotel)
+
+
 def get_all_cities_pakistan():
 
     cities_file = open("pk.json", "r", encoding="utf-8")
@@ -82,7 +90,7 @@ def add_tour_to_db(tour):
 
 
 options = webdriver.FirefoxOptions()
-options.add_argument("--headless")
+# options.add_argument("--headless")
 
 driver = webdriver.Firefox(options=options)
 
@@ -283,6 +291,104 @@ def scrape_gozayaan(place):
         print(error)
 
 
+def scrape_booking(place):
+
+    driver.maximize_window()
+
+    driver.get(
+        "https://www.booking.com/index.en-gb.html?label=gen173nr-1BCAEoggI46AdIM1gEaLUBiAEBmAEJuAEXyAEP2AEB6AEBiAIBqAIDuAKzn8WbBsACAdICJDBmODE2ODlmLTg3Y2MtNGJhNi1iOWJiLWRjZDU2YmFhNDMwY9gCBeACAQ&sid=bfd7ba59bf28050f96132d870539fd2c&keep_landing=1&sb_price_type=total&"
+    )
+
+    sleep(10)
+
+    form = wait_for_element(By.ID, "frm")
+
+    search_field = form.find_element(By.ID, "ss")
+
+    search_field.click()
+
+    search_field.clear()
+
+    search_field.send_keys(place)
+
+    wait_for_element(By.CSS_SELECTOR, "div.xp__dates.xp__group").click()
+
+    wait_for_element(
+        By.XPATH, "//td[@class='bui-calendar__date bui-calendar__date--today']"
+    ).click()
+
+    wait_for_element(
+        By.XPATH,
+        "//td[@class='bui-calendar__date bui-calendar__date--today bui-calendar__date--selected']/following-sibling::td",
+    ).click()
+
+    search_botton = driver.find_element(By.CSS_SELECTOR, "button.sb-searchbox__button")
+
+    search_botton.click()
+
+    sleep(5)
+
+    wait_for_element(By.XPATH, "//div[@data-testid='property-card']")
+
+    list_of_properties = driver.find_elements(
+        By.XPATH, "//div[@data-testid='property-card']"
+    )
+
+    for i in range(len(list_of_properties)):
+
+        try:
+
+            title = driver.find_element(
+                By.XPATH,
+                "(//div[@data-testid='property-card'])[{index}]//div[@data-testid='title']".format(
+                    index=i + 1
+                ),
+            ).text
+
+            link = driver.find_element(
+                By.XPATH,
+                "(//div[@data-testid='property-card'])[{index}]//a[@data-testid='title-link']".format(
+                    index=i + 1
+                ),
+            ).get_attribute("href")
+
+            location = driver.find_element(
+                By.XPATH,
+                "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='address']".format(
+                    index=i + 1
+                ),
+            ).text
+
+            price = driver.find_element(
+                By.XPATH,
+                "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='price-and-discounted-price']".format(
+                    index=i + 1
+                ),
+            ).text
+
+            img = driver.find_element(
+                By.XPATH,
+                "(//div[@data-testid='property-card'])[{index}]//img[@data-testid='image']".format(
+                    index=i + 1
+                ),
+            ).get_attribute("src")
+
+        except Exception as e:
+            print(e)
+            continue
+
+        obj = {
+            "title": title,
+            "link": link,
+            "location": location,
+            "price": price,
+            "img": img,
+            "type": "hotel",
+        }
+
+        add_hotel_to_db(obj)
+
+
 def main():
 
     cities = get_all_cities_pakistan()
@@ -290,10 +396,11 @@ def main():
     for city in cities:
         try:
             print("Scraping " + city)
+            scrape_booking(city)
             scrape_gozayaan(city)
-        except:
-            print("Could not scrape " + city)
-            continue
+        except Exception as e:
+            print(e)
+            break
 
     driver.close()
 
