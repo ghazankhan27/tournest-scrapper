@@ -325,7 +325,9 @@ def scrape_booking(place):
             "//td[@class='bui-calendar__date bui-calendar__date--today bui-calendar__date--selected']/following-sibling::td",
         ).click()
 
-        search_botton = driver.find_element(By.CSS_SELECTOR, "button.sb-searchbox__button")
+        search_botton = driver.find_element(
+            By.CSS_SELECTOR, "button.sb-searchbox__button"
+        )
 
         search_botton.click()
 
@@ -391,10 +393,34 @@ def scrape_booking(place):
 
             add_hotel_to_db(obj)
 
-
     except Exception as error:
         print(error)
         return
+
+
+def scrape_tours_pk(place):
+
+    res = requests.get(
+        "https://www.trips.pk/tours/search?keyword={keyword}".format(keyword=place),
+        headers={
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+        },
+    )
+
+    soup = BeautifulSoup(res.text, "lxml")
+
+    tours = soup.select("div#TourListContent > a")
+
+    for tour in tours:
+
+        title = tour.select_one("h4").text.strip()
+        url = "https://www.trips.pk" + tour["href"]
+        price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
+        days = tour.select_one("table.package-info td").text
+
+        obj = {"title": title, "url": url, "price": price, "days": days}
+
+        print(obj)
 
 
 def main():
@@ -405,6 +431,7 @@ def main():
         print("Scraping " + city)
         scrape_booking(city)
         scrape_gozayaan(city)
+        scrape_tours_pk(city)
 
     driver.close()
 
