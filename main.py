@@ -289,104 +289,112 @@ def scrape_gozayaan(place):
 
     except Exception as error:
         print(error)
+        return
 
 
 def scrape_booking(place):
 
-    driver.maximize_window()
+    try:
 
-    driver.get(
-        "https://www.booking.com/index.en-gb.html?label=gen173nr-1BCAEoggI46AdIM1gEaLUBiAEBmAEJuAEXyAEP2AEB6AEBiAIBqAIDuAKzn8WbBsACAdICJDBmODE2ODlmLTg3Y2MtNGJhNi1iOWJiLWRjZDU2YmFhNDMwY9gCBeACAQ&sid=bfd7ba59bf28050f96132d870539fd2c&keep_landing=1&sb_price_type=total&"
-    )
+        driver.maximize_window()
 
-    sleep(10)
+        driver.get(
+            "https://www.booking.com/index.en-gb.html?label=gen173nr-1BCAEoggI46AdIM1gEaLUBiAEBmAEJuAEXyAEP2AEB6AEBiAIBqAIDuAKzn8WbBsACAdICJDBmODE2ODlmLTg3Y2MtNGJhNi1iOWJiLWRjZDU2YmFhNDMwY9gCBeACAQ&sid=bfd7ba59bf28050f96132d870539fd2c&keep_landing=1&sb_price_type=total&"
+        )
 
-    form = wait_for_element(By.ID, "frm")
+        sleep(10)
 
-    search_field = form.find_element(By.ID, "ss")
+        form = wait_for_element(By.ID, "frm")
 
-    search_field.click()
+        search_field = form.find_element(By.ID, "ss")
 
-    search_field.clear()
+        search_field.click()
 
-    search_field.send_keys(place)
+        search_field.clear()
 
-    wait_for_element(By.CSS_SELECTOR, "div.xp__dates.xp__group").click()
+        search_field.send_keys(place)
 
-    wait_for_element(
-        By.XPATH, "//td[@class='bui-calendar__date bui-calendar__date--today']"
-    ).click()
+        wait_for_element(By.CSS_SELECTOR, "div.xp__dates.xp__group").click()
 
-    wait_for_element(
-        By.XPATH,
-        "//td[@class='bui-calendar__date bui-calendar__date--today bui-calendar__date--selected']/following-sibling::td",
-    ).click()
+        wait_for_element(
+            By.XPATH, "//td[@class='bui-calendar__date bui-calendar__date--today']"
+        ).click()
 
-    search_botton = driver.find_element(By.CSS_SELECTOR, "button.sb-searchbox__button")
+        wait_for_element(
+            By.XPATH,
+            "//td[@class='bui-calendar__date bui-calendar__date--today bui-calendar__date--selected']/following-sibling::td",
+        ).click()
 
-    search_botton.click()
+        search_botton = driver.find_element(By.CSS_SELECTOR, "button.sb-searchbox__button")
 
-    sleep(5)
+        search_botton.click()
 
-    wait_for_element(By.XPATH, "//div[@data-testid='property-card']")
+        sleep(5)
 
-    list_of_properties = driver.find_elements(
-        By.XPATH, "//div[@data-testid='property-card']"
-    )
+        wait_for_element(By.XPATH, "//div[@data-testid='property-card']")
 
-    for i in range(len(list_of_properties)):
+        list_of_properties = driver.find_elements(
+            By.XPATH, "//div[@data-testid='property-card']"
+        )
 
-        try:
+        for i in range(len(list_of_properties)):
 
-            title = driver.find_element(
-                By.XPATH,
-                "(//div[@data-testid='property-card'])[{index}]//div[@data-testid='title']".format(
-                    index=i + 1
-                ),
-            ).text
+            try:
 
-            link = driver.find_element(
-                By.XPATH,
-                "(//div[@data-testid='property-card'])[{index}]//a[@data-testid='title-link']".format(
-                    index=i + 1
-                ),
-            ).get_attribute("href")
+                title = driver.find_element(
+                    By.XPATH,
+                    "(//div[@data-testid='property-card'])[{index}]//div[@data-testid='title']".format(
+                        index=i + 1
+                    ),
+                ).text
 
-            location = driver.find_element(
-                By.XPATH,
-                "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='address']".format(
-                    index=i + 1
-                ),
-            ).text
+                link = driver.find_element(
+                    By.XPATH,
+                    "(//div[@data-testid='property-card'])[{index}]//a[@data-testid='title-link']".format(
+                        index=i + 1
+                    ),
+                ).get_attribute("href")
 
-            price = driver.find_element(
-                By.XPATH,
-                "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='price-and-discounted-price']".format(
-                    index=i + 1
-                ),
-            ).text
+                location = driver.find_element(
+                    By.XPATH,
+                    "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='address']".format(
+                        index=i + 1
+                    ),
+                ).text
 
-            img = driver.find_element(
-                By.XPATH,
-                "(//div[@data-testid='property-card'])[{index}]//img[@data-testid='image']".format(
-                    index=i + 1
-                ),
-            ).get_attribute("src")
+                price = driver.find_element(
+                    By.XPATH,
+                    "(//div[@data-testid='property-card'])[{index}]//span[@data-testid='price-and-discounted-price']".format(
+                        index=i + 1
+                    ),
+                ).text
 
-        except Exception as e:
-            print(e)
-            continue
+                img = driver.find_element(
+                    By.XPATH,
+                    "(//div[@data-testid='property-card'])[{index}]//img[@data-testid='image']".format(
+                        index=i + 1
+                    ),
+                ).get_attribute("src")
 
-        obj = {
-            "title": title,
-            "link": link,
-            "location": location,
-            "price": price,
-            "img": img,
-            "type": "hotel",
-        }
+            except Exception as e:
+                print(e)
+                continue
 
-        add_hotel_to_db(obj)
+            obj = {
+                "title": title,
+                "link": link,
+                "location": location,
+                "price": price,
+                "img": img,
+                "type": "hotel",
+            }
+
+            add_hotel_to_db(obj)
+
+
+    except Exception as error:
+        print(error)
+        return
 
 
 def main():
@@ -394,13 +402,9 @@ def main():
     cities = get_all_cities_pakistan()
 
     for city in cities:
-        try:
-            print("Scraping " + city)
-            scrape_booking(city)
-            scrape_gozayaan(city)
-        except Exception as e:
-            print(e)
-            break
+        print("Scraping " + city)
+        scrape_booking(city)
+        scrape_gozayaan(city)
 
     driver.close()
 
