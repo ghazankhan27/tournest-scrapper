@@ -400,11 +400,13 @@ def scrape_booking(place):
 
 def scrape_tours_pk(place):
 
+    headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+    }
+
     res = requests.get(
         "https://www.trips.pk/tours/search?keyword={keyword}".format(keyword=place),
-        headers={
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
-        },
+        headers=headers,
     )
 
     soup = BeautifulSoup(res.text, "lxml")
@@ -416,11 +418,68 @@ def scrape_tours_pk(place):
         title = tour.select_one("h4").text.strip()
         url = "https://www.trips.pk" + tour["href"]
         price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
-        days = tour.select_one("table.package-info td").text
+        days = tour.select_one("table.package-info td").text.strip()
+        location = tour.select_one("table.package-info  td > span").text.strip()
+        image = tour.select_one("div.package-tab-main-img > img")["src"]
 
-        obj = {"title": title, "url": url, "price": price, "days": days}
+        itenerary_items = []
 
-        print(obj)
+        tour_source = requests.get(url, headers=headers)
+
+        tour_soup = BeautifulSoup(tour_source.text, "lxml")
+
+        description = tour_soup.select_one(
+            "div.package-detail-info div.package-detail > p"
+        ).text.strip()
+
+        try:
+            current_day = 1
+
+            itenerary = tour_soup.select("div.package-faq-div div.accordion-item")
+
+            it_items_list = []
+
+            for ite in itenerary:
+
+                it_items = ite.select("div.accordion-body > p")
+
+                for it_item in it_items:
+
+                    item = str(it_item.text.strip())
+                    if len(item) > 0:
+                        it_items_list.append(item)
+
+                it_obj = {
+                    "day": current_day,
+                    "description": "",
+                    "img": "",
+                    "items": it_items_list,
+                }
+
+                itenerary_items.append(it_obj)
+
+                current_day = current_day + 1
+
+        except Exception as e:
+            print(e)
+            itenerary_items = []
+
+        obj = {
+            "title": title,
+            "days": days,
+            "short_description": "",
+            "description": description,
+            "image": image,
+            "location": location,
+            "url": url,
+            "price": price,
+            "type": "trips.pk",
+            "itinerary": itenerary_items,
+        }
+
+        print(itenerary_items)
+
+        add_tour_to_db(obj)
 
 
 def main():
@@ -432,6 +491,7 @@ def main():
         scrape_booking(city)
         scrape_gozayaan(city)
         scrape_tours_pk(city)
+        break
 
     driver.close()
 
