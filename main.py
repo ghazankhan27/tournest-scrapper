@@ -477,7 +477,6 @@ def scrape_tours_pk(place):
             "itinerary": itenerary_items,
         }
 
-        print(itenerary_items)
 
         add_tour_to_db(obj)
 
@@ -491,7 +490,6 @@ def main():
         scrape_booking(city)
         scrape_gozayaan(city)
         scrape_tours_pk(city)
-        break
 
     driver.close()
 
