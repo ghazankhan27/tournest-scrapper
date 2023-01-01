@@ -383,106 +383,112 @@ def scrape_booking(place):
 
 def scrape_trips_pk(place):
 
-    headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
-    }
+    try:
 
-    res = requests.get(
-        "https://www.trips.pk/tours/{place}".format(place=place),
-        headers=headers,
-    )
-
-
-    soup = BeautifulSoup(res.text, "lxml")
-    
-    if soup.select_one("div.col-lg-9 > h2.h2Prop") != None:
-        print("No Tours Found")
-        return
-
-    print("Grabbing tours")
-
-    tours = soup.select("div#TourListContent > a")
-
-    for tour in tours:
-
-        title = tour.select_one("h4").text.strip()
-        url = "https://www.trips.pk" + tour["href"]
-        price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
-        days = tour.select_one("table.package-info td").text.strip()
-        location = tour.select_one("table.package-info  td > span").text.strip()
-        image = tour.select_one("div.package-tab-main-img > img")["src"]
-
-        itenerary_items = []
-
-        tour_source = requests.get(url, headers=headers)
-
-        tour_soup = BeautifulSoup(tour_source.text, "lxml")
-
-        description = tour_soup.select_one(
-            "div.package-detail-info div.package-detail > p"
-        ).text.strip()
-
-
-        try:
-            current_day = 1
-
-            itenerary = tour_soup.select("div.accordion-body")
-
-            for ite in itenerary:
-
-                it_items_list = []
-
-                it_items = ite.select("p")
-
-                for it_item in it_items:
-
-                    if len(it_item.get_text()) <= 0:
-                        continue
-
-                    x = str(it_item).split("<br/>")
-                    for s in x:
-                        ran = BeautifulSoup(s, 'lxml')
-                        it_text = ran.get_text().strip()
-                        if len(it_text) <= 0:
-                            continue
-                        it_items_list.append(ran.get_text().strip().replace("&nbsp","").replace("&amp", "&"))
-
-
-                    
-                it_obj = {
-                    "day": current_day,
-                    "description": "",
-                    "img": "",
-                    "items": it_items_list,
-                    }
-
-                itenerary_items.append(it_obj)
-                
-                current_day = current_day + 1
-
-
-        except Exception as e:
-            print(e)
-            itenerary_items = []
-
-
-        obj = {
-            "title": title,
-            "days": days,
-            "short_description": "",
-            "description": description,
-            "image": image,
-            "location": location,
-            "url": url,
-            "price": price,
-            "type": "trips.pk",
-            "itinerary": itenerary_items,
+        headers = {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
         }
 
+        res = requests.get(
+            "https://www.trips.pk/tours/{place}".format(place=place),
+            headers=headers,
+        )
 
 
-        add_tour_to_db(obj)
+        soup = BeautifulSoup(res.text, "lxml")
+        
+        if soup.select_one("div.col-lg-9 > h2.h2Prop") != None:
+            print("No Tours Found")
+            return
 
+        print("Grabbing tours")
+
+        tours = soup.select("div#TourListContent > a")
+
+        for tour in tours:
+
+            title = tour.select_one("h4").text.strip()
+            url = "https://www.trips.pk" + tour["href"]
+            price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
+            days = tour.select_one("table.package-info td").text.strip()
+            location = tour.select_one("table.package-info  td > span").text.strip()
+            image = tour.select_one("div.package-tab-main-img > img")["src"]
+
+            itenerary_items = []
+
+            tour_source = requests.get(url, headers=headers)
+
+            tour_soup = BeautifulSoup(tour_source.text, "lxml")
+
+            description = tour_soup.select_one(
+                "div.package-detail-info div.package-detail > p"
+            ).text.strip()
+
+
+            try:
+                current_day = 1
+
+                itenerary = tour_soup.select("div.accordion-body")
+
+                for ite in itenerary:
+
+                    it_items_list = []
+
+                    it_items = ite.select("p")
+
+                    for it_item in it_items:
+
+                        if len(it_item.get_text()) <= 0:
+                            continue
+
+                        x = str(it_item).split("<br/>")
+                        for s in x:
+                            ran = BeautifulSoup(s, 'lxml')
+                            it_text = ran.get_text().strip()
+                            if len(it_text) <= 0:
+                                continue
+                            it_items_list.append(ran.get_text().strip().replace("&nbsp","").replace("&amp", "&"))
+
+
+                        
+                    it_obj = {
+                        "day": current_day,
+                        "description": "",
+                        "img": "",
+                        "items": it_items_list,
+                        }
+
+                    itenerary_items.append(it_obj)
+                    
+                    current_day = current_day + 1
+
+
+            except Exception as e:
+                print(e)
+                itenerary_items = []
+
+
+            obj = {
+                "title": title,
+                "days": days,
+                "short_description": "",
+                "description": description,
+                "image": image,
+                "location": location,
+                "url": url,
+                "price": price,
+                "type": "trips.pk",
+                "itinerary": itenerary_items,
+            }
+
+
+
+            add_tour_to_db(obj)
+    
+    
+    except Exception as error:
+        print(error)
+        return
 
 def main():
 
