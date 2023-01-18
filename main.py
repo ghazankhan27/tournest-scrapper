@@ -93,6 +93,7 @@ options = webdriver.FirefoxOptions()
 options.add_argument("--headless")
 
 driver = webdriver.Firefox(options=options)
+driver.maximize_window()
 
 
 def wait_for_element(by, selector):
@@ -113,9 +114,7 @@ def scrape_gozayaan(place):
     try:
 
         tours_information_list = []
-
         print("Getting website: Gozayaan")
-        driver.maximize_window()
         driver.get("https://www.gozayaan.com/?search=tour")
 
         search_bar = wait_for_element(By.CSS_SELECTOR, "div.tour-search.bar")
@@ -302,7 +301,7 @@ def scrape_booking(place):
 
         print("Looking for search input")
 
-        search_bar = wait_for_element(By.ID, 'ss')
+        search_bar = wait_for_element(By.ID, "ss")
 
         search_bar.clear()
 
@@ -323,23 +322,28 @@ def scrape_booking(place):
         try:
             for i in range(len(days)):
                 item = days[i]
-                adjacent_item = days[i+1]
+                adjacent_item = days[i + 1]
 
                 class_name = item.get_attribute("class")
-                if 'bui-calendar__date--today' in class_name:
+                if "bui-calendar__date--today" in class_name:
                     item.click()
                     adjacent_item.click()
-                    break 
-        
+                    break
+
         except Exception as e:
             print(e)
             return
 
-        search_button = driver.find_element(By.CSS_SELECTOR, "button.sb-searchbox__button")
+        search_button = driver.find_element(
+            By.CSS_SELECTOR, "button.sb-searchbox__button"
+        )
 
         search_button.click()
 
-        property_list_item = wait_for_element(By.XPATH,"//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]")
+        property_list_item = wait_for_element(
+            By.XPATH,
+            "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
+        )
 
         if property_list_item == None:
             print("No hotels found")
@@ -347,14 +351,32 @@ def scrape_booking(place):
 
         print("Getting list of properties")
 
-        property_list_items = driver.find_elements(By.XPATH, "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]")
-        property_list_links = driver.find_elements(By.XPATH, "//div[@data-testid='property-card']//a[@data-testid='title-link']")
-        property_list_images = driver.find_elements(By.XPATH, "//img[@data-testid='image']")
-        property_list_location = driver.find_elements(By.XPATH, "//span[@data-testid='address']")
-        property_list_price = driver.find_elements(By.XPATH, "//*[@data-testid='price-and-discounted-price']")
+        property_list_items = driver.find_elements(
+            By.XPATH,
+            "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
+        )
+        property_list_links = driver.find_elements(
+            By.XPATH,
+            "//div[@data-testid='property-card']//a[@data-testid='title-link']",
+        )
+        property_list_images = driver.find_elements(
+            By.XPATH, "//img[@data-testid='image']"
+        )
+        property_list_location = driver.find_elements(
+            By.XPATH, "//span[@data-testid='address']"
+        )
+        property_list_price = driver.find_elements(
+            By.XPATH, "//*[@data-testid='price-and-discounted-price']"
+        )
 
-        if not len(property_list_items) == len(property_list_links) == len(property_list_images) == len(property_list_location) == len(property_list_price):
-            print('Invalid data')
+        if (
+            not len(property_list_items)
+            == len(property_list_links)
+            == len(property_list_images)
+            == len(property_list_location)
+            == len(property_list_price)
+        ):
+            print("Invalid data")
             return
 
         obj = {}
@@ -367,12 +389,12 @@ def scrape_booking(place):
             location = property_list_location[i]
             price = property_list_price[i]
 
-            obj['title'] = str(name.text).strip()
-            obj['img'] = str(img.get_attribute('src'))
-            obj['link'] = str(link.get_attribute("href"))
-            obj['location'] = str(location.text).strip()
-            obj['price']= str(price.text).strip()
-            obj['type'] = "Booking.com"
+            obj["title"] = str(name.text).strip()
+            obj["img"] = str(img.get_attribute("src"))
+            obj["link"] = str(link.get_attribute("href"))
+            obj["location"] = str(location.text).strip()
+            obj["price"] = str(price.text).strip()
+            obj["type"] = "Booking.com"
 
             add_hotel_to_db(obj)
 
@@ -394,9 +416,8 @@ def scrape_trips_pk(place):
             headers=headers,
         )
 
-
         soup = BeautifulSoup(res.text, "lxml")
-        
+
         if soup.select_one("div.col-lg-9 > h2.h2Prop") != None:
             print("No Tours Found")
             return
@@ -424,7 +445,6 @@ def scrape_trips_pk(place):
                 "div.package-detail-info div.package-detail > p"
             ).text.strip()
 
-
             try:
                 current_day = 1
 
@@ -443,30 +463,31 @@ def scrape_trips_pk(place):
 
                         x = str(it_item).split("<br/>")
                         for s in x:
-                            ran = BeautifulSoup(s, 'lxml')
+                            ran = BeautifulSoup(s, "lxml")
                             it_text = ran.get_text().strip()
                             if len(it_text) <= 0:
                                 continue
-                            it_items_list.append(ran.get_text().strip().replace("&nbsp","").replace("&amp", "&"))
+                            it_items_list.append(
+                                ran.get_text()
+                                .strip()
+                                .replace("&nbsp", "")
+                                .replace("&amp", "&")
+                            )
 
-
-                        
                     it_obj = {
                         "day": current_day,
                         "description": "",
                         "img": "",
                         "items": it_items_list,
-                        }
+                    }
 
                     itenerary_items.append(it_obj)
-                    
-                    current_day = current_day + 1
 
+                    current_day = current_day + 1
 
             except Exception as e:
                 print(e)
                 itenerary_items = []
-
 
             obj = {
                 "title": title,
@@ -481,23 +502,24 @@ def scrape_trips_pk(place):
                 "itinerary": itenerary_items,
             }
 
-
-
             add_tour_to_db(obj)
-    
-    
+
     except Exception as error:
         print(error)
         return
 
+
 def main():
 
-    cities = get_all_cities_pakistan()
+    cities = ["france"]
 
     for city in cities:
         print("Scraping " + city)
+        print("/------------------Booking -----------------------------------/")
         scrape_booking(city)
+        print("/------------------Gozayaan -----------------------------------/")
         scrape_gozayaan(city)
+        print("/------------------Trips -----------------------------------/")
         scrape_trips_pk(city)
 
     driver.close()
