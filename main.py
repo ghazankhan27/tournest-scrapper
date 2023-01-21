@@ -91,9 +91,11 @@ def add_tour_to_db(tour):
 
 options = webdriver.FirefoxOptions()
 options.add_argument("--headless")
+options.add_argument("--ignore-certificate-errors")
+options.add_argument("--allow-running-insecure-content")
 
 driver = webdriver.Firefox(options=options)
-driver.maximize_window()
+driver.set_window_size(1920, 1080)
 
 
 def wait_for_element(by, selector):
@@ -113,9 +115,9 @@ def scrape_gozayaan(place):
 
     try:
 
-        tours_information_list = []
-        print("Getting website: Gozayaan")
         driver.get("https://www.gozayaan.com/?search=tour")
+
+        print("Finding search bar")
 
         search_bar = wait_for_element(By.CSS_SELECTOR, "div.tour-search.bar")
 
@@ -124,7 +126,9 @@ def scrape_gozayaan(place):
         search_input = wait_for_element(By.ID, "searchString")
 
         print("Sending search query")
+
         search_input.clear()
+
         search_input.send_keys(place)
 
         location_list = wait_for_element(By.CLASS_NAME, "location-list")
@@ -132,136 +136,139 @@ def scrape_gozayaan(place):
         location_suggestions = location_list.find_elements(By.CLASS_NAME, "location")
 
         print("Clicking first suggestion")
+
         location_suggestions[0].click()
 
         print("Clicking search button")
+
         search_button = wait_for_element(By.CLASS_NAME, "search-btn")
 
         search_button.click()
 
         print("Waiting for tours to show up")
-        wait_for_element(By.CLASS_NAME, "tour-card-wrapper")
+
+        # Waiting for tours to show up
+        tours = wait_for_element(
+            By.CSS_SELECTOR, "div.tour-card > div.tour-card-wrapper"
+        )
+
+        if tours == None:
+            raise Exception("Tours not found")
 
         print("Get all tours")
-        tours_list = driver.find_elements(By.CLASS_NAME, "tour-card-wrapper")
 
-        tour_names = []
+        # Get the total number of tours
+        tours_list = driver.find_elements(
+            By.CSS_SELECTOR, "div.tour-card > div.tour-card-wrapper"
+        )
 
-        for tour in tours_list:
+        # Go through a range of len(tours)
+        for x in range(len(tours_list)):
 
-            name_element = tour.find_element(By.TAG_NAME, "h4")
+            try:
+                price = (
+                    str(
+                        tours_list[x]
+                        .find_element(By.CSS_SELECTOR, "span.price-highlight")
+                        .text
+                    )
+                    .split(" ")[1]
+                    .replace(",", "")
+                )
+            except:
+                print("No price for tour")
+                continue
 
-            name = name_element.get_attribute("innerText")
-
-            tour_names.append(name)
-
-        for name in tour_names:
-
-            to_click_element = None
-
-            wait_for_element(By.CLASS_NAME, "tour-card-wrapper")
-
-            tours_list = driver.find_elements(By.CLASS_NAME, "tour-card-wrapper")
-
-            for tour in tours_list:
-
-                name_element = tour.find_element(By.TAG_NAME, "h4")
-
-                _name = name_element.get_attribute("innerText")
-
-                if name == _name:
-
-                    to_click_element = tour
-
-                    break
-
-            to_click_element.click()
-
-            print("Visited", name)
+            # Clicking the tour
+            tours_list[x].click()
 
             wait_for_element(By.CLASS_NAME, "tour-title")
 
             source = driver.page_source
 
-            soup = BeautifulSoup(str(source), "lxml")
+            try:
 
-            title = str(soup.select_one(".tour-title").get_text()).strip()
-            days = str(soup.select(".summary-point")[0].find("span").get_text()).strip()
-            overview = str(soup.find("div", id="overview").div.p.get_text()).strip()
-            description = str(
-                soup.find("div", id="tour-description").div.div.get_text()
-            ).strip()
-            img = soup.find("div", id="gallery").div.find("img").get("src")
-            location = str(soup.find("a", class_="location-link").get_text()).strip()
-            url = driver.current_url
-            price = str(
-                soup.find("div", class_="price-info-text").h6.get_text()
-            ).strip()
+                soup = BeautifulSoup(str(source), "lxml")
 
-            itinerary_tab = driver.find_element(By.ID, "itinerary")
+                title = str(soup.select_one(".tour-title").get_text()).strip()
+                days = str(
+                    soup.select(".summary-point")[0].find("span").get_text()
+                ).strip()
+                overview = str(soup.find("div", id="overview").div.p.get_text()).strip()
+                description = str(
+                    soup.find("div", id="tour-description").div.div.get_text()
+                ).strip()
+                img = soup.find("div", id="gallery").div.find("img").get("src")
+                location = str(
+                    soup.find("a", class_="location-link").get_text()
+                ).strip()
+                url = driver.current_url
 
-            driver.execute_script(
-                'document.getElementById("itinerary").scrollIntoView({block:"center"})'
-            )
+                itinerary_tab = driver.find_element(By.ID, "itinerary")
 
-            itinerary_tab.click()
+                itinerary_tab.click()
 
-            itinerary_details = wait_for_element(By.ID, "itinerary-details")
+                itinerary_details = wait_for_element(By.ID, "itinerary-details")
 
-            it_days = itinerary_details.find_element(
-                By.CLASS_NAME, "day-tabs"
-            ).find_elements(By.CLASS_NAME, "day-title")
+                it_days = itinerary_details.find_element(
+                    By.CLASS_NAME, "day-tabs"
+                ).find_elements(By.CLASS_NAME, "day-title")
 
-            current_day = 1
+                current_day = 1
 
-            it_day_items = []
+                it_day_items = []
 
-            for day in it_days:
-                day.click()
+                for day in it_days:
+                    day.click()
 
-                html = driver.find_elements(By.CSS_SELECTOR, "div.itinerary-preview")
+                    html = driver.find_elements(
+                        By.CSS_SELECTOR, "div.itinerary-preview"
+                    )
 
-                for ht in html:
+                    for ht in html:
 
-                    inner_html = ht.get_attribute("innerHTML")
+                        inner_html = ht.get_attribute("innerHTML")
 
-                    tiny_soup = BeautifulSoup(str(inner_html), "lxml")
+                        tiny_soup = BeautifulSoup(str(inner_html), "lxml")
 
-                    description_it = str(
-                        tiny_soup.find("h2", class_="tour-title").get_text()
-                    ).strip()
+                        description_it = str(
+                            tiny_soup.find("h2", class_="tour-title").get_text()
+                        ).strip()
 
-                    check_img_it = tiny_soup.find("img")
+                        check_img_it = tiny_soup.find("img")
 
-                    if check_img_it == None:
-                        img_it = ""
-                    else:
-                        img_it = str(check_img_it.get("src")).strip()
+                        if check_img_it == None:
+                            img_it = ""
+                        else:
+                            img_it = str(check_img_it.get("src")).strip()
 
-                    day_num = current_day
+                        day_num = current_day
 
-                    it_items_list = []
+                        it_items_list = []
 
-                    it_items = tiny_soup.find_all("li")
+                        it_items = tiny_soup.find_all("li")
 
-                    for it_item in it_items:
+                        for it_item in it_items:
 
-                        item = str(it_item.get_text()).strip()
+                            item = str(it_item.get_text()).strip()
 
-                        it_items_list.append(item)
+                            it_items_list.append(item)
 
-                it_obj = {
-                    "day": day_num,
-                    "description": description_it,
-                    "img": img_it,
-                    "items": it_items_list,
-                }
+                    it_obj = {
+                        "day": day_num,
+                        "description": description_it,
+                        "img": img_it,
+                        "items": it_items_list,
+                    }
 
-                it_day_items.append(it_obj)
+                    it_day_items.append(it_obj)
 
-                current_day += 1
+                    current_day += 1
 
-                sleep(1)
+                    sleep(1)
+            except:
+                print("Incomplete data in tour")
+                continue
 
             obj = {
                 "title": title,
@@ -278,13 +285,18 @@ def scrape_gozayaan(place):
 
             add_tour_to_db(obj)
 
-            tours_information_list.append(obj)
+            driver.back()
 
-            back_button = driver.find_element(By.CLASS_NAME, "back-to-see-all")
+            tours = wait_for_element(
+                By.CSS_SELECTOR, "div.tour-card > div.tour-card-wrapper"
+            )
 
-            back_button = back_button.find_element(By.TAG_NAME, "span")
+            if tours == None:
+                raise Exception("Tours not found")
 
-            back_button.click()
+            tours_list = driver.find_elements(
+                By.CSS_SELECTOR, "div.tour-card > div.tour-card-wrapper"
+            )
 
     except Exception as error:
         print(error)
@@ -301,21 +313,26 @@ def scrape_booking(place):
 
         print("Looking for search input")
 
+        driver.get_screenshot_as_file("screenshot.png")
+
         search_bar = wait_for_element(By.ID, "ss")
 
-        search_bar.clear()
+        if search_bar == None:
+            raise Exception("Couldn't find search bar")
 
+        search_bar.clear()
         search_bar.send_keys(place)
 
         find_calender = wait_for_element(By.XPATH, "//div[@class='xp__dates-inner']")
 
         if find_calender == None:
-            print("Calender not found")
-            return
+            raise Exception("Couldn't find calendar")
 
         driver.find_element(By.XPATH, "//div[@class='xp__dates-inner']").click()
-
         days = driver.find_elements(By.XPATH, "//td[@role='gridcell']")
+
+        if days == None:
+            raise Exception("Couldn't find dates in the calender")
 
         print("Selecting dates")
 
@@ -331,72 +348,96 @@ def scrape_booking(place):
                     break
 
         except Exception as e:
-            print(e)
-            return
+            raise Exception("Could not click correct dates on calendar")
 
         search_button = driver.find_element(
             By.CSS_SELECTOR, "button.sb-searchbox__button"
         )
 
+        if search_button == None:
+            raise Exception("Could not find search button")
+
         search_button.click()
 
-        property_list_item = wait_for_element(
-            By.XPATH,
-            "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
-        )
+        next_page_exists = True
 
-        if property_list_item == None:
-            print("No hotels found")
-            return
+        while next_page_exists:
 
-        print("Getting list of properties")
+            property_list_item = wait_for_element(
+                By.XPATH,
+                "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
+            )
 
-        property_list_items = driver.find_elements(
-            By.XPATH,
-            "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
-        )
-        property_list_links = driver.find_elements(
-            By.XPATH,
-            "//div[@data-testid='property-card']//a[@data-testid='title-link']",
-        )
-        property_list_images = driver.find_elements(
-            By.XPATH, "//img[@data-testid='image']"
-        )
-        property_list_location = driver.find_elements(
-            By.XPATH, "//span[@data-testid='address']"
-        )
-        property_list_price = driver.find_elements(
-            By.XPATH, "//*[@data-testid='price-and-discounted-price']"
-        )
+            if property_list_item == None:
+                raise Exception("No hotels found")
 
-        if (
-            not len(property_list_items)
-            == len(property_list_links)
-            == len(property_list_images)
-            == len(property_list_location)
-            == len(property_list_price)
-        ):
-            print("Invalid data")
-            return
+            print("Getting list of properties")
 
-        obj = {}
+            property_list_items = driver.find_elements(
+                By.XPATH,
+                "//div[@data-testid='property-card']//a[@data-testid='title-link']//div[1]",
+            )
+            property_list_links = driver.find_elements(
+                By.XPATH,
+                "//div[@data-testid='property-card']//a[@data-testid='title-link']",
+            )
+            property_list_images = driver.find_elements(
+                By.XPATH, "//img[@data-testid='image']"
+            )
+            property_list_location = driver.find_elements(
+                By.XPATH, "//span[@data-testid='address']"
+            )
+            property_list_price = driver.find_elements(
+                By.XPATH, "//*[@data-testid='price-and-discounted-price']"
+            )
 
-        for i in range(len(property_list_items)):
+            if (
+                not len(property_list_items)
+                == len(property_list_links)
+                == len(property_list_images)
+                == len(property_list_location)
+                == len(property_list_price)
+            ):
+                raise Exception("Data is invalid")
 
-            name = property_list_items[i]
-            img = property_list_images[i]
-            link = property_list_links[i]
-            location = property_list_location[i]
-            price = property_list_price[i]
+            obj = {}
 
-            obj["title"] = str(name.text).strip()
-            obj["img"] = str(img.get_attribute("src"))
-            obj["link"] = str(link.get_attribute("href"))
-            obj["location"] = str(location.text).strip()
-            obj["price"] = str(price.text).strip()
-            obj["type"] = "Booking.com"
+            try:
+                for i in range(len(property_list_items)):
+                    name = property_list_items[i]
+                    img = property_list_images[i]
+                    link = property_list_links[i]
+                    location = property_list_location[i]
+                    price = property_list_price[i]
 
-            add_hotel_to_db(obj)
+                    obj["title"] = str(name.text).strip()
+                    obj["img"] = str(img.get_attribute("src"))
+                    obj["link"] = str(link.get_attribute("href"))
+                    obj["location"] = str(location.text).strip()
+                    obj["price"] = str(price.text).strip()
+                    obj["type"] = "Booking.com"
+
+                    add_hotel_to_db(obj)
+            except:
+                raise Exception("There was a problem geting data correctly")
+
+            print("Checking if next button exists")
+
+            next_button = driver.find_element(
+                By.XPATH, "//button[@aria-label='Next page']"
+            )
+
+            if next_button == None:
+                print("We are on the last page")
+                next_page_exists = False
+
+            next_button.click()
+
+            loader = wait_for_element(By.XPATH, "//div[@data-testid='overlay-card']")
+
+            EC.invisibility_of_element(loader)
+
+            sleep(5)
 
     except Exception as error:
         print(error)
@@ -419,90 +460,108 @@ def scrape_trips_pk(place):
         soup = BeautifulSoup(res.text, "lxml")
 
         if soup.select_one("div.col-lg-9 > h2.h2Prop") != None:
-            print("No Tours Found")
-            return
+            raise Exception("No Tours found")
 
         print("Grabbing tours")
 
-        tours = soup.select("div#TourListContent > a")
+        tours_exists = True
+        current_page = 1
 
-        for tour in tours:
+        while tours_exists:
+            tours = soup.select("div#TourListContent > a")
 
-            title = tour.select_one("h4").text.strip()
-            url = "https://www.trips.pk" + tour["href"]
-            price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
-            days = tour.select_one("table.package-info td").text.strip()
-            location = tour.select_one("table.package-info  td > span").text.strip()
-            image = tour.select_one("div.package-tab-main-img > img")["src"]
+            for tour in tours:
 
-            itenerary_items = []
+                title = tour.select_one("h4").text.strip()
+                url = "https://www.trips.pk" + tour["href"]
+                price = tour.select_one("div.package-price").text.split(" ")[1] + " PKR"
+                days = tour.select_one("table.package-info td").text.strip()
+                location = tour.select_one("table.package-info  td > span").text.strip()
+                image = tour.select_one("div.package-tab-main-img > img")["src"]
 
-            tour_source = requests.get(url, headers=headers)
-
-            tour_soup = BeautifulSoup(tour_source.text, "lxml")
-
-            description = tour_soup.select_one(
-                "div.package-detail-info div.package-detail > p"
-            ).text.strip()
-
-            try:
-                current_day = 1
-
-                itenerary = tour_soup.select("div.accordion-body")
-
-                for ite in itenerary:
-
-                    it_items_list = []
-
-                    it_items = ite.select("p")
-
-                    for it_item in it_items:
-
-                        if len(it_item.get_text()) <= 0:
-                            continue
-
-                        x = str(it_item).split("<br/>")
-                        for s in x:
-                            ran = BeautifulSoup(s, "lxml")
-                            it_text = ran.get_text().strip()
-                            if len(it_text) <= 0:
-                                continue
-                            it_items_list.append(
-                                ran.get_text()
-                                .strip()
-                                .replace("&nbsp", "")
-                                .replace("&amp", "&")
-                            )
-
-                    it_obj = {
-                        "day": current_day,
-                        "description": "",
-                        "img": "",
-                        "items": it_items_list,
-                    }
-
-                    itenerary_items.append(it_obj)
-
-                    current_day = current_day + 1
-
-            except Exception as e:
-                print(e)
                 itenerary_items = []
 
-            obj = {
-                "title": title,
-                "days": days,
-                "short_description": "",
-                "description": description,
-                "image": image,
-                "location": location,
-                "url": url,
-                "price": price,
-                "type": "trips.pk",
-                "itinerary": itenerary_items,
-            }
+                tour_source = requests.get(url, headers=headers)
 
-            add_tour_to_db(obj)
+                tour_soup = BeautifulSoup(tour_source.text, "lxml")
+
+                description = tour_soup.select_one(
+                    "div.package-detail-info div.package-detail > p"
+                ).text.strip()
+
+                try:
+                    current_day = 1
+
+                    itenerary = tour_soup.select("div.accordion-body")
+
+                    for ite in itenerary:
+
+                        it_items_list = []
+
+                        it_items = ite.select("p")
+
+                        for it_item in it_items:
+
+                            if len(it_item.get_text()) <= 0:
+                                continue
+
+                            x = str(it_item).split("<br/>")
+                            for s in x:
+                                ran = BeautifulSoup(s, "lxml")
+                                it_text = ran.get_text().strip()
+                                if len(it_text) <= 0:
+                                    continue
+                                it_items_list.append(
+                                    ran.get_text()
+                                    .strip()
+                                    .replace("&nbsp", "")
+                                    .replace("&amp", "&")
+                                )
+
+                        it_obj = {
+                            "day": current_day,
+                            "description": "",
+                            "img": "",
+                            "items": it_items_list,
+                        }
+
+                        itenerary_items.append(it_obj)
+
+                        current_day = current_day + 1
+
+                except Exception as e:
+                    print(e)
+                    itenerary_items = []
+
+                obj = {
+                    "title": title,
+                    "days": days,
+                    "short_description": "",
+                    "description": description,
+                    "image": image,
+                    "location": location,
+                    "url": url,
+                    "price": price,
+                    "type": "trips.pk",
+                    "itinerary": itenerary_items,
+                }
+
+                add_tour_to_db(obj)
+
+            current_page = current_page + 1
+
+            res = requests.get(
+                "https://www.trips.pk/tours/{place}?PageNo={page_number}".format(
+                    place=place, page_number=current_page
+                ),
+                headers=headers,
+            )
+
+            if soup.select_one("div.col-lg-9 > h2.h2Prop") != None:
+                tours_exists = False
+                raise Exception("No Tours found")
+
+            print("Grabbing tours", current_page)
 
     except Exception as error:
         print(error)
@@ -515,11 +574,11 @@ def main():
 
     for city in cities:
         print("Scraping " + city)
-        print("/------------------Booking -----------------------------------/")
+        print("/------------------Booking.com-----------------------------------/")
         scrape_booking(city)
-        print("/------------------Gozayaan -----------------------------------/")
+        print("/------------------Gozayaan.com-----------------------------------/")
         scrape_gozayaan(city)
-        print("/------------------Trips -----------------------------------/")
+        print("/------------------Trips.pk-----------------------------------/")
         scrape_trips_pk(city)
 
     driver.close()
